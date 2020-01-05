@@ -161,9 +161,9 @@ def main():
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     model = MobileNet().to(device)
-    # optimizer = optim.SGD(model.parameters(), lr=args.lr,
-    #                       momentum=args.momentum)
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = optim.SGD(model.parameters(), lr=args.lr,
+                           momentum=args.momentum)
+    # optimizer = torch.optim.Adam(model.parameters())
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=[12, 24], gamma=0.1)
 
