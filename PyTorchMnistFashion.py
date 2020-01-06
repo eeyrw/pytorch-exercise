@@ -160,7 +160,7 @@ def main():
         ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-    model = MobileNet().to(device)
+    model = Net().to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr,
                            momentum=args.momentum)
     # optimizer = torch.optim.Adam(model.parameters())
@@ -172,7 +172,7 @@ def main():
         test(args, model, device, test_loader)
 
     if (args.save_model):
-        torch.save(model.state_dict(), "mnist_cnn.pt")
+        torch.save(model.state_dict(), "mnist_fashion_cnn.pt")
 
 
 # 当.py文件直接运行时，该语句及以下的代码被执行，当.py被调用时，该语句及以下的代码不被执行
