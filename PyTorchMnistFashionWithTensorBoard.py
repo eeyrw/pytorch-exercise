@@ -15,37 +15,43 @@ from torch.utils.tensorboard import SummaryWriter
 import datetime
 
 # default `log_dir` is "runs" - we'll be more specific here
-writer = SummaryWriter('runs/fashion_mnist_experiment_'+datetime.datetime.now().strftime('%H_%M_%S'))
+writer = SummaryWriter('runs/fashion_mnist_experiment_' +
+                       datetime.datetime.now().strftime('%H_%M_%S'))
 
 # transforms
 transform = transforms.Compose(
-    [transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))])
+    [
+        transforms.RandomAffine(45),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,)),
+    ])
 
 # datasets
 trainset = torchvision.datasets.FashionMNIST('./fashionmnist_data',
-    download=True,
-    train=True,
-    transform=transform)
+                                             download=True,
+                                             train=True,
+                                             transform=transform)
 testset = torchvision.datasets.FashionMNIST('./fashionmnist_data',
-    download=True,
-    train=False,
-    transform=transform)
+                                            download=True,
+                                            train=False,
+                                            transform=transform)
 
 # dataloaders
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                        shuffle=True, num_workers=0)
+                                          shuffle=True, num_workers=0)
 
 
 testloader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                        shuffle=False, num_workers=0)
+                                         shuffle=False, num_workers=0)
 
 # constant for classes
 classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
-        'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
+           'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
 
 # helper function to show an image
 # (used in the `plot_classes_preds` function below)
+
+
 def matplotlib_imshow(img, one_channel=False):
     if one_channel:
         img = img.mean(dim=0)
@@ -55,6 +61,7 @@ def matplotlib_imshow(img, one_channel=False):
         plt.imshow(npimg, cmap="Greys")
     else:
         plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -78,7 +85,8 @@ class Net(nn.Module):
 
 net = Net()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)        
+optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+# optimizer = optim.Adagrad(net.parameters(), lr=0.001)
 # get some random training images
 dataiter = iter(trainloader)
 images, labels = dataiter.next()
@@ -96,6 +104,8 @@ writer.add_graph(net, images)
 writer.close()
 
 # helper function
+
+
 def select_n_random(data, labels, n=100):
     '''
     Selects n random datapoints and their corresponding labels from a dataset
@@ -104,6 +114,7 @@ def select_n_random(data, labels, n=100):
 
     perm = torch.randperm(len(data))
     return data[perm][:n], labels[perm][:n]
+
 
 # select random images and their target indices
 images, labels = select_n_random(trainset.data, trainset.targets)
@@ -114,11 +125,12 @@ class_labels = [classes[lab] for lab in labels]
 # log embeddings
 features = images.view(-1, 28 * 28)
 writer.add_embedding(features,
-                    metadata=class_labels,
-                    label_img=images.unsqueeze(1))
+                     metadata=class_labels,
+                     label_img=images.unsqueeze(1))
 writer.close()
 
 # helper functions
+
 
 def images_to_probs(net, images):
     '''
@@ -150,14 +162,16 @@ def plot_classes_preds(net, images, labels):
             classes[preds[idx]],
             probs[idx] * 100.0,
             classes[labels[idx]]),
-                    color=("green" if preds[idx]==labels[idx].item() else "red"))
+            color=("green" if preds[idx] == labels[idx].item() else "red"))
     return fig
 
+
 print(net.state_dict().keys())
-cnn_weights = net.state_dict()['conv2.weight'].cpu()    
+cnn_weights = net.state_dict()['conv2.weight'].cpu()
 
 running_loss = 0.0
-for epoch in range(1):  # loop over the dataset multiple times
+batchSize = 1000
+for epoch in range(3):  # loop over the dataset multiple times
 
     for i, data in enumerate(trainloader, 0):
 
@@ -174,20 +188,22 @@ for epoch in range(1):  # loop over the dataset multiple times
         optimizer.step()
 
         running_loss += loss.item()
-        if i % 1000 == 999:    # every 1000 mini-batches...
+        if i % batchSize == (batchSize-1):    # every 1000 mini-batches...
 
             # ...log the running loss
             writer.add_scalar('training loss',
-                            running_loss / 1000,
-                            epoch * len(trainloader) + i)
+                              running_loss / batchSize,
+                              epoch * len(trainloader) + i)
 
             # ...log a Matplotlib Figure showing the model's predictions on a
             # random mini-batch
             writer.add_figure('predictions vs. actuals',
-                            plot_classes_preds(net, inputs, labels),
-                            global_step=epoch * len(trainloader) + i)
+                              plot_classes_preds(net, inputs, labels),
+                              global_step=epoch * len(trainloader) + i)
+            print('Epoch %d: %d trained, Loss: %f'%(epoch,i,running_loss / batchSize))                              
             running_loss = 0.0
-print('Finished Training') 
+
+print('Finished Training')
 
 # 1. gets the probability predictions in a test_size x num_classes Tensor
 # 2. gets the preds in a test_size Tensor
@@ -208,6 +224,8 @@ test_probs = torch.cat([torch.stack(batch) for batch in class_probs])
 test_preds = torch.cat(class_preds)
 
 # helper function
+
+
 def add_pr_curve_tensorboard(class_index, test_probs, test_preds, global_step=0):
     '''
     Takes in a "class_index" from 0 to 9 and plots the corresponding
@@ -221,6 +239,7 @@ def add_pr_curve_tensorboard(class_index, test_probs, test_preds, global_step=0)
                         tensorboard_probs,
                         global_step=global_step)
     writer.close()
+
 
 # plot all the pr curves
 for i in range(len(classes)):
